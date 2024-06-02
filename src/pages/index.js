@@ -2,6 +2,9 @@
 import Image from "next/image";
 import useSWR from "swr";
 import { useForm } from "react-hook-form";
+import { useState } from "react";
+
+const HOSTNAME = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3000'
 
 export default function Home() {
   const {
@@ -10,14 +13,25 @@ export default function Home() {
     watch,
     formState: { errors }
   } = useForm()
-  const { data: locationData, isLoading: locationIsLoading } = useSWR('http://localhost:3000/api/v1/locations')
-  if (locationIsLoading) return (
-    <div>
-      Loading ...
-    </div>
-  )
-  const fetchTrafficAndWeatherInfo = (params) => {
+  const { data: locationData, isLoading: locationIsLoading } = useSWR(`${HOSTNAME}/api/v1/locations`)
+  const [weatherData, setWeatherData] = useState({})
+  const [trafficData, setTrafficData] = useState({})
+  const fetchTrafficAndWeatherInfo = async (params) => {
     console.log({ params })
+    const weatherUrl = new URL(`${HOSTNAME}/api/v1/weather`)
+    weatherUrl.searchParams.append('date', params.date)
+    weatherUrl.searchParams.append('dateTime', `${params.date}T${params.time}:00`)
+    const weatherResult = await fetch(weatherUrl)
+    const weatherJsonResult = await weatherResult.json()
+    const currentLocation = JSON.parse(params.location)
+    setWeatherData(weatherJsonResult.items[0].forecasts.find(a => a.area === currentLocation.name))
+    const trafficUrl = new URL(`${HOSTNAME}/api/v1/traffic`)
+    trafficUrl.searchParams.append('dateTime', `${params.date}T${params.time}:00`)
+    trafficUrl.searchParams.append('lat', currentLocation.name)
+    const trafficResult = await fetch(trafficUrl)
+    const trafficJsonResult = await trafficResult.json()
+    console.log({ trafficJsonResult })
+    setTrafficData(trafficJsonResult)
   }
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-24 bg-gray-100 text-gray-900">
@@ -37,7 +51,7 @@ export default function Home() {
             <div className="bg-white p-4 rounded-lg shadow-md mb-4">
               <label htmlFor="location-select" className="block text-sm font-medium text-gray-700">Select from list of locations</label>
               <select id="location-select" className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" {...register('location', { required: true })}>
-                {locationData ? locationData.map(location => (
+                {!locationIsLoading ? locationData.map(location => (
                   <option key={location.id} value={JSON.stringify(location)}>{location.name}</option>
                 )) : null}
               </select>
@@ -49,7 +63,7 @@ export default function Home() {
           <div className="bg-white p-4 rounded-lg shadow-md mb-4">
             <h2 className="text-lg font-medium text-gray-700">Display weather result</h2>
             <div className="mt-2 h-32 bg-gray-200 rounded-md flex items-center justify-center">
-              <span className="text-gray-500">Weather data will be displayed here</span>
+              <span className="text-gray-500">{weatherData.forecast}</span>
             </div>
           </div>
         </form>
