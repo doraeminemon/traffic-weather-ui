@@ -14,8 +14,8 @@ export default function Home() {
     formState: { errors }
   } = useForm()
   const { data: locationData, isLoading: locationIsLoading } = useSWR(`${HOSTNAME}/api/v1/locations`)
-  const [weatherData, setWeatherData] = useState({})
-  const [trafficData, setTrafficData] = useState({})
+  const [weatherData, setWeatherData] = useState(null)
+  const [trafficData, setTrafficData] = useState(null)
   const fetchTrafficAndWeatherInfo = async (params) => {
     console.log({ params })
     const weatherUrl = new URL(`${HOSTNAME}/api/v1/weather`)
@@ -27,7 +27,7 @@ export default function Home() {
     setWeatherData(weatherJsonResult.items[0].forecasts.find(a => a.area === currentLocation.name))
     const trafficUrl = new URL(`${HOSTNAME}/api/v1/traffic`)
     trafficUrl.searchParams.append('dateTime', `${params.date}T${params.time}:00`)
-    trafficUrl.searchParams.append('lat', currentLocation.name)
+    trafficUrl.searchParams.append('locationName', currentLocation.name)
     const trafficResult = await fetch(trafficUrl)
     const trafficJsonResult = await trafficResult.json()
     console.log({ trafficJsonResult })
@@ -63,25 +63,20 @@ export default function Home() {
           <div className="bg-white p-4 rounded-lg shadow-md mb-4">
             <h2 className="text-lg font-medium text-gray-700">Display weather result</h2>
             <div className="mt-2 h-32 bg-gray-200 rounded-md flex items-center justify-center">
-              <span className="text-gray-500">{weatherData.forecast}</span>
+              <span className="text-gray-500">{weatherData ? weatherData.forecast : null}</span>
             </div>
           </div>
         </form>
         <div className="bg-white p-4 rounded-lg shadow-md">
           <h2 className="text-lg font-medium text-gray-700">Display traffic screenshot results</h2>
           <div className="mt-2 grid grid-cols-2 gap-2">
-            <div className="h-24 bg-gray-200 rounded-md flex items-center justify-center">
-              <span className="text-gray-500">Traffic screenshot 1</span>
-            </div>
-            <div className="h-24 bg-gray-200 rounded-md flex items-center justify-center">
-              <span className="text-gray-500">Traffic screenshot 2</span>
-            </div>
-            <div className="h-24 bg-gray-200 rounded-md flex items-center justify-center">
-              <span className="text-gray-500">Traffic screenshot 3</span>
-            </div>
-            <div className="h-24 bg-gray-200 rounded-md flex items-center justify-center">
-              <span className="text-gray-500">Traffic screenshot 4</span>
-            </div>
+            {
+              trafficData ? trafficData.result.items[0].cameras.map(camera => (
+                <div key={camera.camera_id} className="h-24 bg-gray-200 rounded-md flex items-center justify-center">
+                  <img src={camera.image} />
+                </div>
+              )) : null
+            }
           </div>
         </div>
       </div>
