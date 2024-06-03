@@ -10,14 +10,21 @@ export default function Home() {
   const {
     register,
     handleSubmit,
-    watch,
     formState: { errors }
   } = useForm()
   const { data: locationData, isLoading: locationIsLoading } = useSWR(`${HOSTNAME}/api/v1/locations`)
   const [weatherData, setWeatherData] = useState(null)
   const [trafficData, setTrafficData] = useState(null)
-  const fetchTrafficAndWeatherInfo = async (params) => {
-    console.log({ params })
+  const fetchTrafficInfo = async (params) => {
+    const trafficUrl = new URL(`${HOSTNAME}/api/v1/traffic`)
+    const currentLocation = JSON.parse(params.location)
+    trafficUrl.searchParams.append('dateTime', `${params.date}T${params.time}:00`)
+    trafficUrl.searchParams.append('locationName', currentLocation.name)
+    const trafficResult = await fetch(trafficUrl)
+    const trafficJsonResult = await trafficResult.json()
+    setTrafficData(trafficJsonResult)
+  }
+  const fetchWeatherInfo = async (params) => {
     const weatherUrl = new URL(`${HOSTNAME}/api/v1/weather`)
     weatherUrl.searchParams.append('date', params.date)
     weatherUrl.searchParams.append('dateTime', `${params.date}T${params.time}:00`)
@@ -25,13 +32,12 @@ export default function Home() {
     const weatherJsonResult = await weatherResult.json()
     const currentLocation = JSON.parse(params.location)
     setWeatherData(weatherJsonResult.items[0].forecasts.find(a => a.area === currentLocation.name))
-    const trafficUrl = new URL(`${HOSTNAME}/api/v1/traffic`)
-    trafficUrl.searchParams.append('dateTime', `${params.date}T${params.time}:00`)
-    trafficUrl.searchParams.append('locationName', currentLocation.name)
-    const trafficResult = await fetch(trafficUrl)
-    const trafficJsonResult = await trafficResult.json()
-    console.log({ trafficJsonResult })
-    setTrafficData(trafficJsonResult)
+  }
+  const fetchTrafficAndWeatherInfo = async (params) => {
+    await Promise.all([
+      fetchTrafficInfo(params),
+      fetchWeatherInfo(params)
+    ])
   }
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-24 bg-gray-100 text-gray-900">
